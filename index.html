@@ -604,11 +604,17 @@
 
             filteredBookmarks.forEach(bookmark => {
                 const card = createBookmarkCard(bookmark);
-                grid.appendChild(card);
+                if (card) {
+                    grid.appendChild(card);
+                }
             });
         }
 
         function createBookmarkCard(bookmark) {
+            if (!bookmark.name || !bookmark.screen_name) {
+                return null;
+            }
+            
             const card = document.createElement('div');
             card.className = 'bookmark-card';
             card.onclick = () => window.open(bookmark.tweet_url, '_blank');
