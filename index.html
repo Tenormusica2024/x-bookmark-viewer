@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X Bookmark Viewer</title>
+    <style>
+        :root {
+            --bg-gradient-1: #0a192f;
+            --bg-gradient-2: #1a2332;
+            --bg-gradient-3: #2a3447;
+            --card-bg: rgba(26, 35, 50, 0.85);
+            --card-border: rgba(100, 255, 218, 0.1);
+            --text-primary: #ccd6f6;
+            --text-secondary: #8892b0;
+            --accent-cyan: #64ffda;
+            --accent-blue: #5fb3f5;
+            --accent-pink: #f77fb0;
+            --hover-glow: rgba(100, 255, 218, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 50%, var(--bg-gradient-3) 100%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+        }
+
+        .upload-section {
+            background: var(--card-bg);
+            border: 2px dashed var(--card-border);
+            border-radius: 16px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .upload-section:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 30px var(--hover-glow);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        #csvFileInput {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            color: var(--bg-gradient-1);
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(100, 255, 218, 0.3);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(100, 255, 218, 0.5);
+        }
+
+        .upload-btn:active {
+            transform: translateY(0);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 8px 30px var(--hover-glow);
+            transform: translateY(-5px);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            color: var(--accent-cyan);
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .categories-section {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.8s ease-out 0.6s both;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            color: var(--accent-cyan);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 1.5rem;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            border-radius: 2px;
+        }
+
+        .category-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .category-tag {
+            background: rgba(100, 255, 218, 0.1);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 0.6rem 1.2rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .category-tag:hover {
+            background: var(--accent-cyan);
+            color: var(--bg-gradient-1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(100, 255, 218, 0.4);
+        }
+
+        .category-tag.active {
+            background: var(--accent-cyan);
+            color: var(--bg-gradient-1);
+            box-shadow: 0 4px 15px rgba(100, 255, 218, 0.4);
+        }
+
+        .category-tag .count {
+            opacity: 0.8;
+            margin-left: 0.3rem;
+        }
+
+        .bookmarks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            animation: fadeInUp 0.8s ease-out 0.8s both;
+        }
+
+        .bookmark-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .bookmark-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 8px 30px var(--hover-glow);
+            transform: translateY(-5px);
+        }
+
+        .bookmark-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .profile-image {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-cyan);
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.2rem;
+        }
+
+        .screen-name {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .tweet-content {
+            color: var(--text-primary);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .tweet-date {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+
+        .tweet-categories {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .tweet-category {
+            background: rgba(95, 179, 245, 0.15);
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            padding: 0.3rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .tweet-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent-cyan);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .tweet-link:hover {
+            color: var(--accent-blue);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .bookmarks-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ X Bookmark Viewer</h1>
+            <p class="subtitle">君のブックマークを美しく整理するよ♪</p>
+        </header>
+
+        <div class="upload-section">
+            <div class="file-input-wrapper">
+                <input type="file" id="csvFileInput" accept=".csv">
+                <button class="upload-btn" onclick="document.getElementById('csvFileInput').click()">
+                    📁 CSVファイルを選択
+                </button>
+            </div>
+            <p style="margin-top: 1rem; color: var(--text-secondary);">bookmarks.csv をアップロードしてね</p>
+        </div>
+
+        <div class="stats-grid" id="statsGrid" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-label">総ブックマーク数</div>
+                <div class="stat-value" id="totalCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">カテゴリ数</div>
+                <div class="stat-value" id="categoryCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">最新ツイート</div>
+                <div class="stat-value" id="latestDate" style="font-size: 1.2rem;">-</div>
+            </div>
+        </div>
+
+        <div class="categories-section" id="categoriesSection" style="display: none;">
+            <h2 class="section-title">🏷️ カテゴリでフィルター</h2>
+            <div class="category-tags" id="categoryTags"></div>
+        </div>
+
+        <div class="bookmarks-grid" id="bookmarksGrid">
+            <div class="empty-state">
+                <div class="empty-state-icon">📚</div>
+                <h3>まだブックマークが読み込まれていないよ</h3>
+                <p>上のボタンからCSVファイルをアップロードしてね♡</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allBookmarks = [];
+        let currentFilter = null;
+
+        document.getElementById('csvFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                parseCSV(event.target.result);
+            };
+            reader.readAsText(file, 'UTF-8');
+        });
+
+        function parseCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            
+            allBookmarks = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                const values = parseCSVLine(lines[i]);
+                const bookmark = {};
+                headers.forEach((header, index) => {
+                    bookmark[header] = values[index] || '';
+                });
+                
+                bookmark.categories = assignCategories(bookmark.full_text, bookmark.note_tweet_text);
+                allBookmarks.push(bookmark);
+            }
+
+            updateStats();
+            updateCategories();
+            renderBookmarks();
+        }
+
+        function parseCSVLine(line) {
+            const values = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    values.push(current.trim().replace(/^"|"$/g, ''));
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            values.push(current.trim().replace(/^"|"$/g, ''));
+            
+            return values;
+        }
+
+        function assignCategories(fullText, noteText) {
+            const text = (fullText + ' ' + noteText).toLowerCase();
+            const categories = [];
+
+            const categoryKeywords = {
+                'AI': ['ai', 'gpt', 'claude', 'chatgpt', 'llm', '人工知能', '機械学習', 'ml', 'deep learning'],
+                'Tech': ['tech', 'technology', 'プログラミング', 'コード', 'code', 'developer', '開発'],
+                'Design': ['design', 'ui', 'ux', 'デザイン', 'figma', 'css', 'html'],
+                'Business': ['business', 'startup', 'ビジネス', 'スタートアップ', '起業', '経営'],
+                'News': ['news', 'ニュース', '速報', '発表', 'announce'],
+                'Tutorial': ['tutorial', 'how to', 'guide', 'チュートリアル', '方法', '解説'],
+                'Inspiration': ['inspiration', 'インスピレーション', '素晴らしい', 'amazing', 'awesome'],
+                'Thread': ['thread', 'スレッド', '1/', '①'],
+                'その他': []
+            };
+
+            for (const [category, keywords] of Object.entries(categoryKeywords)) {
+                if (category === 'その他') continue;
+                if (keywords.some(keyword => text.includes(keyword))) {
+                    categories.push(category);
+                }
+            }
+
+            if (categories.length === 0) {
+                categories.push('その他');
+            }
+
+            return categories;
+        }
+
+        function updateStats() {
+            document.getElementById('statsGrid').style.display = 'grid';
+            document.getElementById('totalCount').textContent = allBookmarks.length;
+
+            const uniqueCategories = new Set();
+            allBookmarks.forEach(b => b.categories.forEach(c => uniqueCategories.add(c)));
+            document.getElementById('categoryCount').textContent = uniqueCategories.size;
+
+            if (allBookmarks.length > 0) {
+                const latestDate = allBookmarks[0].tweeted_at;
+                document.getElementById('latestDate').textContent = formatDate(latestDate);
+            }
+        }
+
+        function updateCategories() {
+            const categoryCounts = {};
+            allBookmarks.forEach(bookmark => {
+                bookmark.categories.forEach(category => {
+                    categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+                });
+            });
+
+            const categoryTagsDiv = document.getElementById('categoryTags');
+            categoryTagsDiv.innerHTML = '';
+
+            const allTag = document.createElement('div');
+            allTag.className = 'category-tag active';
+            allTag.innerHTML = `すべて <span class="count">(${allBookmarks.length})</span>`;
+            allTag.onclick = () => filterByCategory(null);
+            categoryTagsDiv.appendChild(allTag);
+
+            Object.entries(categoryCounts)
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([category, count]) => {
+                    const tag = document.createElement('div');
+                    tag.className = 'category-tag';
+                    tag.innerHTML = `${category} <span class="count">(${count})</span>`;
+                    tag.onclick = () => filterByCategory(category);
+                    categoryTagsDiv.appendChild(tag);
+                });
+
+            document.getElementById('categoriesSection').style.display = 'block';
+        }
+
+        function filterByCategory(category) {
+            currentFilter = category;
+            
+            document.querySelectorAll('.category-tag').forEach(tag => {
+                tag.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            renderBookmarks();
+        }
+
+        function renderBookmarks() {
+            const grid = document.getElementById('bookmarksGrid');
+            grid.innerHTML = '';
+
+            const filteredBookmarks = currentFilter 
+                ? allBookmarks.filter(b => b.categories.includes(currentFilter))
+                : allBookmarks;
+
+            if (filteredBookmarks.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <h3>該当するブックマークが見つからなかったよ</h3>
+                        <p>別のカテゴリを試してみて♪</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredBookmarks.forEach(bookmark => {
+                const card = createBookmarkCard(bookmark);
+                grid.appendChild(card);
+            });
+        }
+
+        function createBookmarkCard(bookmark) {
+            const card = document.createElement('div');
+            card.className = 'bookmark-card';
+            card.onclick = () => window.open(bookmark.tweet_url, '_blank');
+
+            const categoriesHTML = bookmark.categories
+                .map(cat => `<span class="tweet-category">${cat}</span>`)
+                .join('');
+
+            card.innerHTML = `
+                <div class="bookmark-header">
+                    <img src="${bookmark.profile_image_url_https}" 
+                         alt="${bookmark.name}" 
+                         class="profile-image"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%2364ffda%22/%3E%3C/svg%3E'">
+                    <div class="user-info">
+                        <div class="user-name">${escapeHtml(bookmark.name)}</div>
+                        <div class="screen-name">@${escapeHtml(bookmark.screen_name)}</div>
+                    </div>
+                </div>
+                <div class="tweet-content">${escapeHtml(bookmark.full_text || bookmark.note_tweet_text)}</div>
+                <div class="tweet-date">📅 ${formatDate(bookmark.tweeted_at)}</div>
+                <div class="tweet-categories">${categoriesHTML}</div>
+                <a href="${bookmark.tweet_url}" class="tweet-link" onclick="event.stopPropagation()">
+                    🔗 ツイートを見る →
+                </a>
+            `;
+
+            return card;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ja-JP', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
