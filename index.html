@@ -426,14 +426,38 @@
         }
 
         function parseCSV(csvText) {
-            const lines = csvText.split('\n');
-            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            const rows = [];
+            let currentRow = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < csvText.length; i++) {
+                const char = csvText[i];
+                const nextChar = csvText[i + 1];
+                
+                if (char === '"' && nextChar === '"' && inQuotes) {
+                    currentRow += '""';
+                    i++;
+                } else if (char === '"') {
+                    inQuotes = !inQuotes;
+                    currentRow += char;
+                } else if (char === '\n' && !inQuotes) {
+                    if (currentRow.trim()) {
+                        rows.push(currentRow);
+                    }
+                    currentRow = '';
+                } else {
+                    currentRow += char;
+                }
+            }
+            if (currentRow.trim()) {
+                rows.push(currentRow);
+            }
+            
+            const headers = parseCSVLine(rows[0]);
             
             allBookmarks = [];
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                
-                const values = parseCSVLine(lines[i]);
+            for (let i = 1; i < rows.length; i++) {
+                const values = parseCSVLine(rows[i]);
                 const bookmark = {};
                 headers.forEach((header, index) => {
                     bookmark[header] = values[index] || '';
