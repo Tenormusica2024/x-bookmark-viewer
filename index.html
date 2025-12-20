@@ -300,6 +300,73 @@
             color: var(--accent-blue);
         }
 
+        .rating-stars {
+            display: flex;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+
+        .star {
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .star:hover {
+            transform: scale(1.2);
+        }
+
+        .star.filled {
+            color: #ffd700;
+        }
+
+        .star.empty {
+            color: var(--card-border);
+        }
+
+        .search-section {
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out 0.3s both;
+        }
+
+        .tweet-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .tweet-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tweet-image:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(100, 255, 218, 0.3);
+        }
+
+        .category-edit-btn {
+            background: rgba(95, 179, 245, 0.15);
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+            padding: 0.3rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .category-edit-btn:hover {
+            background: var(--accent-blue);
+            color: var(--bg-gradient-1);
+        }
+
         .empty-state {
             text-align: center;
             padding: 4rem 2rem;
@@ -359,14 +426,22 @@
         <div class="upload-section">
             <div class="file-input-wrapper">
                 <input type="file" id="csvFileInput" accept=".csv">
+                <input type="file" id="galleryDlInput" webkitdirectory directory multiple style="display:none">
                 <button class="upload-btn" onclick="document.getElementById('csvFileInput').click()">
                     📁 CSVファイルを選択
+                </button>
+                <button class="upload-btn" onclick="document.getElementById('galleryDlInput').click()" style="margin-left: 1rem; background: linear-gradient(135deg, #f77fb0, #ff6b9d);">
+                    📂 gallery-dlフォルダを選択
                 </button>
                 <button class="upload-btn" onclick="loadDefaultCSV()" style="margin-left: 1rem; background: linear-gradient(135deg, var(--accent-blue), var(--accent-pink));">
                     ✨ デフォルトデータを読み込む
                 </button>
             </div>
-            <p style="margin-top: 1rem; color: var(--text-secondary);">bookmarks.csv をアップロードするか、デフォルトデータを読み込んでね</p>
+            <p style="margin-top: 1rem; color: var(--text-secondary);">bookmarks.csv、gallery-dlフォルダ、またはデフォルトデータを読み込んでね</p>
+        </div>
+
+        <div class="search-section" id="searchSection" style="display: none;">
+            <input type="text" id="searchInput" placeholder="🔍 ツイート本文・作者名・カテゴリで検索..." style="width: 100%; padding: 1rem; border-radius: 12px; border: 2px solid var(--card-border); background: var(--card-bg); color: var(--text-primary); font-size: 1rem; backdrop-filter: blur(10px);">
         </div>
 
         <div class="stats-grid" id="statsGrid" style="display: none;">
@@ -401,6 +476,9 @@
     <script>
         let allBookmarks = [];
         let currentFilter = null;
+        let searchQuery = '';
+        let userRatings = JSON.parse(localStorage.getItem('bookmarkRatings') || '{}');
+        let userCategories = JSON.parse(localStorage.getItem('bookmarkCategories') || '{}');
 
         document.getElementById('csvFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -411,6 +489,17 @@
                 parseCSV(event.target.result);
             };
             reader.readAsText(file, 'UTF-8');
+        });
+
+        document.getElementById('galleryDlInput').addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            if (!files.length) return;
+            parseGalleryDlFiles(files);
+        });
+
+        document.getElementById('searchInput')?.addEventListener('input', function(e) {
+            searchQuery = e.target.value.toLowerCase();
+            renderBookmarks();
         });
 
         function loadDefaultCSV() {
@@ -463,13 +552,45 @@
                     bookmark[header] = values[index] || '';
                 });
                 
-                bookmark.categories = assignCategories(bookmark.full_text, bookmark.note_tweet_text);
+                const tweetId = bookmark.tweet_url?.match(/status\/(\d+)/)?.[1] || `csv_${i}`;
+                bookmark.tweet_id = tweetId;
+                bookmark.categories = userCategories[tweetId] || assignCategories(bookmark.full_text, bookmark.note_tweet_text);
+                bookmark.rating = userRatings[tweetId] || 0;
+                bookmark.images = [];
                 allBookmarks.push(bookmark);
             }
 
             updateStats();
             updateCategories();
             renderBookmarks();
+            document.getElementById('searchSection').style.display = 'block';
+        }
+
+        function setRating(tweetId, rating) {
+            userRatings[tweetId] = rating;
+            localStorage.setItem('bookmarkRatings', JSON.stringify(userRatings));
+            const bookmark = allBookmarks.find(b => b.tweet_id === tweetId);
+            if (bookmark) {
+                bookmark.rating = rating;
+            }
+            renderBookmarks();
+        }
+
+        function editCategory(tweetId) {
+            const bookmark = allBookmarks.find(b => b.tweet_id === tweetId);
+            if (!bookmark) return;
+
+            const currentCats = bookmark.categories.join(', ');
+            const newCats = prompt('カテゴリをカンマ区切りで入力してね（例: AI, Tech, Design）', currentCats);
+            
+            if (newCats !== null) {
+                const categories = newCats.split(',').map(c => c.trim()).filter(c => c);
+                bookmark.categories = categories.length ? categories : ['その他'];
+                userCategories[tweetId] = bookmark.categories;
+                localStorage.setItem('bookmarkCategories', JSON.stringify(userCategories));
+                updateCategories();
+                renderBookmarks();
+            }
         }
 
         function parseCSVLine(line) {
@@ -529,6 +650,7 @@
         }
 
         function updateStats() {
+            if (!allBookmarks.length) return;
             document.getElementById('statsGrid').style.display = 'grid';
             document.getElementById('totalCount').textContent = allBookmarks.length;
 
@@ -583,13 +705,87 @@
             renderBookmarks();
         }
 
+        function parseGalleryDlFiles(files) {
+            const metadataFiles = files.filter(f => f.name.endsWith('-metadata.txt'));
+            const imageFiles = files.filter(f => f.name.match(/\.(jpg|png|jpeg)$/i));
+            
+            let processed = 0;
+            allBookmarks = [];
+
+            metadataFiles.forEach(metaFile => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    const lines = content.split('\n');
+                    
+                    const bookmark = {
+                        full_text: '',
+                        name: '',
+                        screen_name: '',
+                        tweeted_at: '',
+                        tweet_url: '',
+                        favorite_count: 0,
+                        retweet_count: 0,
+                        reply_count: 0,
+                        profile_image_url_https: '',
+                        images: []
+                    };
+
+                    lines.forEach(line => {
+                        if (line.startsWith('Tweet: ')) bookmark.full_text = line.substring(7);
+                        if (line.startsWith('Author: ')) {
+                            const authorMatch = line.match(/Author: (.+?) \(@(.+?)\)/);
+                            if (authorMatch) {
+                                bookmark.name = authorMatch[1];
+                                bookmark.screen_name = authorMatch[2];
+                            }
+                        }
+                        if (line.startsWith('Date: ')) bookmark.tweeted_at = line.substring(6);
+                        if (line.startsWith('URL: ')) bookmark.tweet_url = line.substring(5);
+                        if (line.startsWith('Likes: ')) bookmark.favorite_count = parseInt(line.substring(7)) || 0;
+                        if (line.startsWith('Retweets: ')) bookmark.retweet_count = parseInt(line.substring(10)) || 0;
+                        if (line.startsWith('Replies: ')) bookmark.reply_count = parseInt(line.substring(9)) || 0;
+                    });
+
+                    const tweetId = bookmark.tweet_url?.match(/status\/(\d+)/)?.[1] || metaFile.name.match(/-(\d+)-metadata/)?.[1];
+                    bookmark.tweet_id = tweetId;
+                    bookmark.categories = userCategories[tweetId] || assignCategories(bookmark.full_text, '');
+                    bookmark.rating = userRatings[tweetId] || 0;
+
+                    const baseName = metaFile.name.replace('-metadata.txt', '');
+                    const relatedImages = imageFiles.filter(img => img.name.startsWith(baseName));
+                    relatedImages.forEach(img => {
+                        bookmark.images.push(URL.createObjectURL(img));
+                    });
+
+                    allBookmarks.push(bookmark);
+                    processed++;
+
+                    if (processed === metadataFiles.length) {
+                        updateStats();
+                        updateCategories();
+                        renderBookmarks();
+                        document.getElementById('searchSection').style.display = 'block';
+                    }
+                };
+                reader.readAsText(metaFile, 'UTF-8');
+            });
+        }
+
         function renderBookmarks() {
             const grid = document.getElementById('bookmarksGrid');
             grid.innerHTML = '';
 
-            const filteredBookmarks = currentFilter 
+            let filteredBookmarks = currentFilter 
                 ? allBookmarks.filter(b => b.categories.includes(currentFilter))
                 : allBookmarks;
+
+            if (searchQuery) {
+                filteredBookmarks = filteredBookmarks.filter(b => {
+                    const searchText = `${b.full_text} ${b.name} ${b.screen_name} ${b.categories.join(' ')}`.toLowerCase();
+                    return searchText.includes(searchQuery);
+                });
+            }
 
             if (filteredBookmarks.length === 0) {
                 grid.innerHTML = `
@@ -623,9 +819,20 @@
                 .map(cat => `<span class="tweet-category">${cat}</span>`)
                 .join('');
 
+            const imagesHTML = bookmark.images && bookmark.images.length > 0
+                ? `<div class="tweet-images">${bookmark.images.map(img => 
+                    `<img src="${img}" class="tweet-image" onclick="event.stopPropagation(); window.open('${img}', '_blank')">`
+                  ).join('')}</div>`
+                : '';
+
+            const ratingStars = Array.from({length: 5}, (_, i) => {
+                const filled = i < (bookmark.rating || 0);
+                return `<span class="star ${filled ? 'filled' : 'empty'}" onclick="event.stopPropagation(); setRating('${bookmark.tweet_id}', ${i + 1})">★</span>`;
+            }).join('');
+
             card.innerHTML = `
                 <div class="bookmark-header">
-                    <img src="${bookmark.profile_image_url_https}" 
+                    <img src="${bookmark.profile_image_url_https || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%2364ffda%22/%3E%3C/svg%3E'}" 
                          alt="${bookmark.name}" 
                          class="profile-image"
                          onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%2364ffda%22/%3E%3C/svg%3E'">
@@ -634,9 +841,14 @@
                         <div class="screen-name">@${escapeHtml(bookmark.screen_name)}</div>
                     </div>
                 </div>
+                <div class="rating-stars">${ratingStars}</div>
                 <div class="tweet-content">${escapeHtml(bookmark.full_text || bookmark.note_tweet_text)}</div>
+                ${imagesHTML}
                 <div class="tweet-date">📅 ${formatDate(bookmark.tweeted_at)}</div>
-                <div class="tweet-categories">${categoriesHTML}</div>
+                <div class="tweet-categories">
+                    ${categoriesHTML}
+                    <button class="category-edit-btn" onclick="event.stopPropagation(); editCategory('${bookmark.tweet_id}')">✏️ 編集</button>
+                </div>
                 <a href="${bookmark.tweet_url}" class="tweet-link" onclick="event.stopPropagation()">
                     🔗 ツイートを見る →
                 </a>
